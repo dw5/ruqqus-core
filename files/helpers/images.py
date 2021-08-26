@@ -1,4 +1,7 @@
 import requests
+import blurhash
+import PIL.Image
+import numpy
 from os import environ
 from PIL import Image as IImage, ImageSequence
 import base64
@@ -32,6 +35,7 @@ def upload_file(file=None, resize=False, png=False):
 
 	if png: filedir = "image.png"
 	else: filedir = "image.gif"
+	blurh = blurhash.encode(numpy.array(PIL.Image.open(filedir).convert("RGB")))
 	try:
 		with open(filedir, 'rb') as f:
 			data={'image': base64.b64encode(f.read())} 
@@ -42,4 +46,4 @@ def upload_file(file=None, resize=False, png=False):
 
 	new_image = Image(text=url, deletehash=resp["deletehash"])
 	g.db.add(new_image)
-	return(url)
+	return { "url": url, "thumb_blurhash": blurh }

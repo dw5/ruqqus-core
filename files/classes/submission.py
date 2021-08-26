@@ -45,6 +45,7 @@ class Submission(Base, Stndrd, Age_times, Scores):
 	edited_utc = Column(BigInteger, default=0)
 	created_utc = Column(BigInteger, default=0)
 	thumburl = Column(String)
+	thumb_blurhash = Column(String(50), default="")
 	is_banned = Column(Boolean, default=False)
 	views = Column(Integer, default=0)
 	deleted_utc = Column(Integer, default=0)
