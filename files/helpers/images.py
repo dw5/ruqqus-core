@@ -46,4 +46,4 @@ def upload_file(file=None, resize=False, png=False):
 
 	new_image = Image(text=url, deletehash=resp["deletehash"])
 	g.db.add(new_image)
-	return { "url": "url", "thumb_blurhash": blurh }
+	return { "url": url, "thumb_blurhash": blurh }
