@@ -83,6 +83,7 @@ CREATE TABLE public.submissions (
     upvotes integer,
     app_id integer,
     thumburl text,
+	thumb_blurhash character varying(50),
     private boolean,
     views integer,
     is_bot boolean

@@ -45,6 +45,7 @@ class Submission(Base, Stndrd, Age_times, Scores):
 	edited_utc = Column(BigInteger, default=0)
 	created_utc = Column(BigInteger, default=0)
 	thumburl = Column(String)
+	thumb_blurhash = Column(String(50), default="")
 	is_banned = Column(Boolean, default=False)
 	views = Column(Integer, default=0)
 	deleted_utc = Column(Integer, default=0)
@@ -230,6 +231,7 @@ class Submission(Base, Stndrd, Age_times, Scores):
 				'is_nsfw': self.over_18,
 				'is_bot': self.is_bot,
 				'thumb_url': self.thumb_url,
+				'thumb_blurhash': self.thumb_blurhash,
 				'domain': self.domain,
 				'url': self.url,
 				'body': self.body,

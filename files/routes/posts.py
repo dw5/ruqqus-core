@@ -484,7 +484,9 @@ def thumbs(new_post):
 		for chunk in image_req.iter_content(1024):
 			file.write(chunk)
 
-	post.thumburl = upload_file(resize=True)
+	res = upload_file(resize=True)
+	post.thumburl = res["url"]
+	post.thumb_blurhash = res["thumb_blurhash"]
 	g.db.add(post)
 	g.db.commit()
 
@@ -538,23 +540,16 @@ def submit_post(v):
 	if repost:
 		return redirect(repost.permalink)
 
-	if not title:
-		if request.headers.get("Authorization"): return {"error": "Please enter a better title"}, 400
-		else: return render_template("submit.html", v=v, error="Please enter a better title.", title=title, url=url, body=request.form.get("body", "")), 400
+	if not title: return {"error": "Please enter a better title"}, 400
 
-
-	elif len(title) > 500:
-		if request.headers.get("Authorization"): return {"error": "500 character limit for titles"}, 400
-		else: render_template("submit.html", v=v, error="500 character limit for titles.", title=title[:500], url=url, body=request.form.get("body", "")), 400
-
+	elif len(title) > 500: return {"error": "500 character limit for titles"}, 400
 
 	parsed_url = urlparse(url)
 	if not (parsed_url.scheme and parsed_url.netloc) and not request.form.get(
 			"body") and not request.files.get("file", None):
 
-		if request.headers.get("Authorization"): return {"error": "`url` or `body` parameter required."}, 400
-		else: return render_template("submit.html", v=v, error="Please enter a url or some text.", title=title, url=url, body=request.form.get("body", "")), 400
-
+		return {"error": "`url` or `body` parameter required."}, 400
+		
 	# sanitize title
 	title = bleach.clean(title, tags=[])
 
@@ -603,9 +598,8 @@ def submit_post(v):
 		elif domain_obj.reason==7:
 			v.ban(reason="Sexualizing minors")
 
-		if request.headers.get("Authorization"): return {"error":"ToS violation"}, 400
-		else: return render_template("submit.html", v=v, error="ToS Violation", title=title, url=url, body=request.form.get("body", "")), 400
-
+		return {"error":"ToS violation"}, 400
+		
 	if "twitter.com" in domain:
 		try: embed = requests.get("https://publish.twitter.com/oembed", params={"url":url, "omit_script":"t"}).json()["html"]
 		except: embed = None
@@ -711,16 +705,10 @@ def submit_post(v):
 		return redirect("/notifications")
 
 	# catch too-long body
-	if len(str(body)) > 10000:
-
-		if request.headers.get("Authorization"): return {"error":"10000 character limit for text body."}, 400
-		else: return render_template("submit.html", v=v, error="10000 character limit for text body.", title=title, url=url, body=request.form.get("body", "")), 400
-
-	if len(url) > 2048:
-
-		if request.headers.get("Authorization"): return {"error":"2048 character limit for URLs."}, 400
-		else: return render_template("submit.html", v=v, error="2048 character limit for URLs.", title=title, url=url,body=request.form.get("body", "")), 400
-
+	if len(str(body)) > 10000: return {"error":"10000 character limit for text body."}, 400
+		
+	if len(url) > 2048:	return {"error":"2048 character limit for URLs."}, 400
+		
 	# render text
 	for i in re.finditer('^(https:\/\/.*\.(png|jpg|jpeg|gif|PNG|JPG|JPEG|GIF))', body, re.MULTILINE): body = body.replace(i.group(1), f'![]({i.group(1)})')
 	with CustomRenderer() as renderer:
@@ -740,9 +728,8 @@ def submit_post(v):
 			v.ban(days=30, reason="Digitally malicious content is not allowed.")
 			abort(403)
 
-		if request.headers.get("Authorization"): return {"error": reason}, 403
-		else: return render_template("submit.html", v=v, error=reason, title=title, url=url, body=request.form.get("body", "")), 403
-
+		return {"error": reason}, 403
+		
 	# check spam
 	soup = BeautifulSoup(body_html, features="html.parser")
 	links = [x['href'] for x in soup.find_all('a') if x.get('href')]
@@ -771,9 +758,8 @@ def submit_post(v):
 
 				return redirect('/notifications')
 			else:
-				if request.headers.get("Authorization"): return {"error": f"The link `{badlink.link}` is not allowed. Reason: {badlink.reason}"}, 400
-				else: return render_template("submit.html", v=v, error=f"The link `{badlink.link}` is not allowed. Reason: {badlink.reason}.", title=title, url=url, body=request.form.get("body", "")), 400
-
+				return {"error": f"The link `{badlink.link}` is not allowed. Reason: {badlink.reason}"}, 400
+				
 	# check for embeddable video
 	domain = parsed_url.netloc
 
@@ -828,11 +814,9 @@ def submit_post(v):
 
 		file = request.files['file']
 		if not file.content_type.startswith('image/'):
-			if request.headers.get("Authorization"): return {"error": f"Image files only"}, 400
-			else: return render_template("submit.html", v=v, error=f"Image files only.", title=title, body=request.form.get("body", "")), 400
+			return {"error": f"Image files only"}, 400
 
-
-		new_post.url = upload_file(file)
+		new_post.url = upload_file(file)["url"]
 		g.db.add(new_post)
 		g.db.add(new_post.submission_aux)
 		g.db.commit()
@@ -864,46 +848,6 @@ def submit_post(v):
 	g.db.add(new_post)
 	g.db.commit()
 
-	#if v.agendaposter and "trans lives matter" not in new_post_aux.body_html.lower():
-
-		#new_post.is_banned = True
-		#new_post.ban_reason = "ToS Violation"
-
-		#g.db.add(new_post)
-
-		#c_jannied = Comment(author_id=23,
-			#parent_submission=new_post.id,
-			#level=1,
-			#over_18=False,
-			#is_bot=True,
-			#app_id=None,
-			#is_pinned=True,
-			#distinguish_level=6
-		#)
-
-		#g.db.add(c_jannied)
-		#g.db.flush()
-
-		#body = f"""Hi @{v.username},\n\nYour post has been automatically removed because you forgot
-				#to include `trans lives matter`.\n\nDon't worry, we're here to help! We
-				#won't let you post or comment anything that doesn't express your love and acceptance towards
-				#the trans community. Feel free to resubmit your post with `trans lives matter`
-				#included. \n\n*This is an automated message; if you need help,
-				#you can message us [here](/contact).*"""
-
-		#with CustomRenderer(post_id=new_post.id) as renderer:
-			#body_md = renderer.render(mistletoe.Document(body))
-
-		#body_jannied_html = sanitize(body_md)
-		#c_aux = CommentAux(
-			#id=c_jannied.id,
-			#body_html=body_jannied_html,
-			#body=body
-		#)
-		#g.db.add(c_aux)
-		#g.db.flush()
-		#n = Notification(comment_id=c_jannied.id, user_id=v.id)
-		#g.db.add(n)
 
 	if new_post.url:
 		c = Comment(author_id=21,
@@ -938,8 +882,7 @@ def submit_post(v):
 
 	cache.delete_memoized(frontlist)
 
-	if request.headers.get("Authorization"): return new_post.json
-	else: return redirect(new_post.permalink)
+	return new_post.json
 
 
 @app.post("/delete_post/<pid>")
