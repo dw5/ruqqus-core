@@ -138,7 +138,7 @@ def award_comment(cid, v):
     c = g.db.query(Comment).filter_by(id=cid).first()
 
     if not c or c.is_banned or c.deleted_utc > 0:
-        return {"error": "That comment doesn't exist or has been deleted or removed."}, 404
+        return jsonify({"error": "That comment doesn't exist or has been deleted or removed."}), 404
 
     if c.author_id == v.id:
         return {"error": "You can't award yourself."}, 403
@@ -178,7 +178,7 @@ def admin_userawards_get(v):
     if v.admin_level < 6:
         abort(403)
 
-    return render_template("admin/user_award.html", awards=list(AWARDS.values()), v=v)
+    return jsonify({'results': [AWARDS[x] for x in AWARDS]}), 200
 
 @app.post("/admin/user_award")
 @app.post("/api/v2/admin/user_award")
@@ -223,4 +223,4 @@ def admin_userawards_post(v):
 
     send_notification(1, u, text)
 
-    return render_template("admin/user_award.html", awards=list(AWARDS.values()), v=v)
+    return jsonify({'results': [AWARDS[x] for x in AWARDS]}), 201
