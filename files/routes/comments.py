@@ -201,6 +201,7 @@ def post_pid_comment_cid(cid, pid=None, anything=None, v=None):
 
 
 @app.post("/comment")
+@app.post("/api/v2/comment/submit")
 @limiter.limit("6/minute")
 @is_not_banned
 @validate_formkey
@@ -483,13 +484,7 @@ def api_comment(v):
 	g.db.add(v)
 
 
-	if request.headers.get("Authorization"): return c.json
-	else: return jsonify({"html": render_template("comments.html",
-													v=v,
-													comments=[c],
-													render_replies=False,
-													time=time.time()
-													)})
+	return jsonify(c.json), 200
 
 
 
@@ -526,14 +521,8 @@ def edit_comment(cid, v):
 		if ban.reason:
 			reason += f" {ban.reason}"	
 	
-		if request.headers.get("Authorization"): return {'error': f'A blacklisted domain was used.'}, 400
-		else: return render_template("comment_failed.html",
-												action=f"/edit_comment/{c.id}",
-												badlinks=[
-													x.domain for x in bans],
-												body=body,
-												v=v
-												)
+		return {'error': f'A blacklisted domain was used.'}, 400
+
 	# check badlinks
 	soup = BeautifulSoup(body_html, features="html.parser")
 	links = [x['href'] for x in soup.find_all('a') if x.get('href')]
@@ -684,6 +673,7 @@ def edit_comment(cid, v):
 
 
 @app.post("/delete/comment/<cid>")
+@app.post("/api/v2/comment/<cid>/delete")
 @auth_required
 @validate_formkey
 def delete_comment(cid, v):
@@ -707,6 +697,7 @@ def delete_comment(cid, v):
 	return "", 204
 
 @app.post("/undelete/comment/<cid>")
+@app.post("/api/v2/comment/<cid>/delete")
 @auth_required
 @validate_formkey
 def undelete_comment(cid, v):
@@ -730,6 +721,7 @@ def undelete_comment(cid, v):
 
 
 @app.post("/comment_pin/<cid>")
+@app.post("/api/v2/comment/<cid>/pin")
 @auth_required
 @validate_formkey
 def toggle_comment_pin(cid, v):
@@ -753,20 +745,10 @@ def toggle_comment_pin(cid, v):
 		)
 		g.db.add(ma)
 
-	html=render_template(
-				"comments.html",
-				v=v,
-				comments=[comment],
-				render_replies=False,
-				time=time.time(),
-				)
-
-	html=str(BeautifulSoup(html, features="html.parser").find(id=f"comment-{comment.id}-only"))
-
-	return html
-	
+	return comment.json, 201
 	
 @app.post("/save_comment/<cid>")
+@app.post("/api/v2/comment/<cid>/save")
 @auth_required
 @validate_formkey
 def save_comment(cid, v):
@@ -783,6 +765,7 @@ def save_comment(cid, v):
 	return "", 204
 
 @app.post("/unsave_comment/<cid>")
+@app.post("/api/v2/comment/<cid>/unsave")
 @auth_required
 @validate_formkey
 def unsave_comment(cid, v):
