@@ -35,7 +35,7 @@ def upload_file(file=None, resize=False, png=False):
 
 	if png: filedir = "image.png"
 	else: filedir = "image.gif"
-	blurh = blurhash.encode(numpy.array(PIL.Image.open(filedir).convert("RGB")))
+	blurh = blurhash.encode(numpy.array(PIL.Image.open(filedir).convert("RGB")), components_x=3, components_y=4)
 	try:
 		with open(filedir, 'rb') as f:
 			data={'image': base64.b64encode(f.read())} 
