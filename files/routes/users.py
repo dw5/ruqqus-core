@@ -223,23 +223,29 @@ def redditor_moment_redirect(username):
 # 	users = g.db.query(User).filter(User.rent_utc > 0).all()
 # 	return render_template("rentoids.html", v=v, users=users)
 
-@app.get("/@<username>/followers")
+)
 @app.get("/api/v2/account/<user>/followers")
+@app.get("/v2/account/<user>/followers")
 @auth_required
 def followers(user, v):
-	if v and v.is_banned and not v.unban_utc: return render_template("seized.html")
+	if v and v.is_banned and not v.unban_utc: return {"error": "User is currently banned."}, 403
 
-	u = get_user(username, v=v)
+	u = get_user(user, v=v)
 	users = [x.user for x in u.followers]
-	return render_template("followers.html", v=v, u=u, users=users)
+
+
+	# TODO: ADD PAGINATION
+	return jsonify({"results": [x.json for x in users]}), 200
 
 @app.get("/views")
 @app.get("/api/v2/account/views")
+@app.get("/v2/account/views")
 @auth_required
 def visitors(v):
 	if v.admin_level < 1 and not v.patron: return render_template("errors/patron.html", v=v)
 	viewers=sorted(v.viewers, key = lambda x: x.last_view_utc, reverse=True)
-	return render_template("viewers.html", v=v, viewers=viewers)
+	# TODO: ADD PAGINATION
+	return jsonify({"results":[x.json for x in viewers]}), 200
 
 @app.get("/@<username>")
 @auth_desired
@@ -452,7 +458,6 @@ def u_username_info(user, v=None):
 	return jsonify(u.json)
 
 
-@app.post("/follow/<user>")
 @app.post("/api/v2/account/<user>/follow")
 @app.post("/v2/account/<user>/follow")
 @auth_required
@@ -480,9 +485,8 @@ def follow_user(user, v):
 	return "", 204
 
 
-@app.post("/unfollow/<user>")
-@app.post("/api/v2/account/<user>/unfollow")
-@app.post("/v2/account/<user>/unfollow")
+@app.delete("/api/v2/account/<user>/follow")
+@app.delete("/v2/account/<user>/follow")
 @auth_required
 def unfollow_user(user, v):
 	target = get_user(user, v=v, graceful=True)
