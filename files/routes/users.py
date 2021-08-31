@@ -22,6 +22,7 @@ site = environ.get("DOMAIN").strip()
 # 		secret_key=PUSHER_KEY,
 # )
 @app.get("/leaderboard")
+@app.get("/api/v2/leaderboard")
 @auth_desired
 def leaderboard(v):
 	if v and v.is_banned and not v.unban_utc:return render_template("seized.html")
@@ -30,7 +31,12 @@ def leaderboard(v):
 	users2 = users.order_by(User.stored_subscriber_count.desc()).limit(10).all()
 	users3 = users.order_by(User.post_count.desc()).limit(10).all()
 	users4 = users.order_by(User.comment_count.desc()).limit(10).all()
-	return render_template("leaderboard.html", v=v, users1=users1, users2=users2, users3=users3, users4=users4)
+
+	return jsonify({"coins": [x.json for x in users1],
+					"subs": [x.json for x in users2],
+					"posts": [x.json for x in users3],
+					"comments": [x.json for x in users4]
+					})
 
 @app.get("/@<username>/css")
 def get_css(username):
