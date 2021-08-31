@@ -57,6 +57,7 @@ def get_profilecss(username):
 	return resp
 
 @app.post("/@<username>/reply/<id>")
+@app.post("/api/v2/account/@<username>/reply/<id>")
 @auth_required
 def messagereply(v, username, id):
 
@@ -100,6 +101,7 @@ def songs(id):
 	return send_from_directory('/songs/', f'{user.song}.mp3')
 
 @app.post("/subscribe/<post_id>")
+@app.post("/api/v2/account/subscribe/<post_id>")
 @auth_required
 def subscribe(v, post_id):
 	new_sub = Subscription(user_id=v.id, submission_id=post_id)
@@ -108,6 +110,7 @@ def subscribe(v, post_id):
 	return "", 204
 	
 @app.post("/unsubscribe/<post_id>")
+@app.post("/api/v2/account/unsubscribe/<post_id>")
 @auth_required
 def unsubscribe(v, post_id):
 	sub=g.db.query(Subscription).filter_by(user_id=v.id, submission_id=post_id).first()
@@ -115,6 +118,7 @@ def unsubscribe(v, post_id):
 	return "", 204
 
 @app.post("/@<username>/message")
+@app.post("/api/v2/account/@<username>/message")
 @limiter.limit("10/hour")
 @auth_required
 def message2(v, username):
@@ -175,6 +179,7 @@ def mfa_qr(secret, v):
 
 
 @app.get("/is_available/<name>")
+@app.get("/api/v2/is_available/<name>")
 @auth_desired
 def api_is_available(name, v):
 
@@ -219,8 +224,9 @@ def redditor_moment_redirect(username):
 # 	return render_template("rentoids.html", v=v, users=users)
 
 @app.get("/@<username>/followers")
+@app.get("/api/v2/account/<user>/followers")
 @auth_required
-def followers(username, v):
+def followers(user, v):
 	if v and v.is_banned and not v.unban_utc: return render_template("seized.html")
 
 	u = get_user(username, v=v)
@@ -228,6 +234,7 @@ def followers(username, v):
 	return render_template("followers.html", v=v, u=u, users=users)
 
 @app.get("/views")
+@app.get("/api/v2/account/views")
 @auth_required
 def visitors(v):
 	if v.admin_level < 1 and not v.patron: return render_template("errors/patron.html", v=v)
@@ -352,24 +359,26 @@ def u_username(username, v=None):
 
 
 
-@app.get("/@<username>/comments")
-@app.get("/api/v2/account/<username>/comments")
-@app.get("/v2/account/<username>/comments")
+@app.get("/<user>/comments")
+@app.get("/api/v2/account/<user>/comments")
+@app.get("/v2/account/<user>/comments")
 @auth_desired
-def u_username_comments(username, v=None):
+def u_username_comments(user, v=None):
 	if v and v.is_banned and not v.unban_utc: return render_template("seized.html")
 
+	u = get_user(user, v=v, graceful=True)
+	if not u:
+		u = get_account(user, v=v, graceful=True)
+
+	if not u:
+		return jsonify({'error': 'User does not exist.'}), 404
+
 	# username is unique so at most this returns one result. Otherwise 404
-
 	# case insensitive search
-
-	user = get_user(username, v=v)
-
 	# check for wrong cases
 
-	if username != user.username: return redirect(f'v2/account/{user.url}/comments')
+	if user != u.username or user != u.id: return redirect(f'v2/account/{u.url}/comments')
 
-	u = user
 
 	if u.reserved:
 		return {"error": f"That username is reserved for: {u.reserved}", "time": time.time()}
@@ -422,29 +431,38 @@ def u_username_comments(username, v=None):
 				  "is_following":is_following, "standalone": True, "time":time.time()}
 
 
-@app.get("/@<username>/info")
-@app.get("/api/v2/account/@<username>/info")
-@app.get("/v2/account/@<username>/info")
+@app.get("/<user>/info")
+@app.get("/api/v2/account/<user>/info")
+@app.get("/v2/account/<user>/info")
 @auth_desired
-def u_username_info(username, v=None):
+def u_username_info(user, v=None):
 
-	user = get_user(username, v=v)
+	u = get_user(user, v=v, graceful=True)
+	if not u:
+		u = get_account(user, v=v, graceful=True)
 
-	if user.is_blocking:
+	if not u:
+		return jsonify({'error': 'User does not exist.'}), 404
+
+	if u.is_blocking:
 		return jsonify({"error": "You're blocking this user."}), 401
-	elif user.is_blocked:
+	elif u.is_blocked:
 		return jsonify({"error": "This user is blocking you."}), 403
 
-	return jsonify(user.json)
+	return jsonify(u.json)
 
 
-@app.post("/follow/<username>")
-@app.post("/api/v2/account/<username>/follow")
-@app.post("/v2/account/<username>/follow")
+@app.post("/follow/<user>")
+@app.post("/api/v2/account/<user>/follow")
+@app.post("/v2/account/<user>/follow")
 @auth_required
-def follow_user(username, v):
+def follow_user(user, v):
+	target = get_user(user, v=v, graceful=True)
+	if not target:
+		target = get_account(user, v=v, graceful=True)
 
-	target = get_user(username)
+	if not target:
+		return jsonify({'error': 'User does not exist.'}), 404
 
 	if target.id==v.id: return {"error": "You can't follow yourself!"}, 400
 
@@ -462,13 +480,17 @@ def follow_user(username, v):
 	return "", 204
 
 
-@app.post("/unfollow/<username>")
-@app.post("/api/v2/account/<username>/unfollow")
-@app.post("/v2/account/<username>/unfollow")
+@app.post("/unfollow/<user>")
+@app.post("/api/v2/account/<user>/unfollow")
+@app.post("/v2/account/<user>/unfollow")
 @auth_required
-def unfollow_user(username, v):
+def unfollow_user(user, v):
+	target = get_user(user, v=v, graceful=True)
+	if not target:
+		target = get_account(user, v=v, graceful=True)
 
-	target = get_user(username)
+	if not target:
+		return jsonify({'error': 'User does not exist.'}), 404
 
 	# check for existing follow
 	follow = g.db.query(Follow).filter_by(user_id=v.id, target_id=target.id).first()
@@ -496,10 +518,10 @@ def user_profile_uid(id):
 
 
 @app.get("/@<username>/saved/posts")
-@app.get("/api/v2/account/<username>/saved/posts")
-@app.get("/v2/account/<username>/saved/posts")
+@app.get("/api/v2/account/<user>/saved/posts")
+@app.get("/v2/account/<user>/saved/posts")
 @auth_required
-def saved_posts(v, username):
+def saved_posts(v, user):
 
 	page=int(request.args.get("page",1))
 
