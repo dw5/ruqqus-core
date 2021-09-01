@@ -223,7 +223,7 @@ def redditor_moment_redirect(username):
 # 	users = g.db.query(User).filter(User.rent_utc > 0).all()
 # 	return render_template("rentoids.html", v=v, users=users)
 
-)
+
 @app.get("/api/v2/account/<user>/followers")
 @app.get("/v2/account/<user>/followers")
 @auth_required
